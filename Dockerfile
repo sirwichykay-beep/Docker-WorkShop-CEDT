@@ -4,39 +4,36 @@
 # Builder stage — installs production dependencies only, on a fresh Node base.
 # =============================================================================
 
-# TODO(step-4a): set the builder base image as node:20.11-slim and name the stage "builder".
-FROM ??? AS ???
-#   Do NOT use `node:latest` — we want reproducible builds across the cohort.
+# ใช้ node:20.11-slim และตั้งชื่อ stage ว่า builder
+FROM node:20.11-slim AS builder
 
 WORKDIR /app
 
-# TODO(step-4b): copy package.json and package-lock.json, then install deps.
-COPY ??? ???
-RUN ??? ??? --omit=dev
+# copy package files แล้วติดตั้ง dependencies (ไม่เอา dev)
+COPY app/package.json app/package-lock.json ./
+RUN npm ci --omit=dev
 
-# TODO(step-4c): copy the rest of the app source into /app.
-COPY ??? ???
+# copy source code ทั้งหมด
+COPY app/src ./src
 
 # =============================================================================
 # Runtime stage — slim final image. Nothing from builder's caches leaks in.
 # =============================================================================
 
-# TODO(step-4d): set the runtime base image (same tag as step-4a for consistency).
-FROM ???
+# ใช้ base image เดียวกัน
+FROM node:20.11-slim
 
 WORKDIR /app
 
-# TODO(step-4e): copy the fully-installed app from the builder stage.
-COPY --from=??? ??? ???
+# copy app ที่ build เสร็จจาก builder
+COPY --from=builder /app /app
 
 ENV NODE_ENV=production
 EXPOSE 3000
 
-# TODO(step-4f): add a HEALTHCHECK that probes http://localhost:3000/health.
-#   IMPORTANT: `node:20.11-slim` does NOT ship with curl or wget.
-#   Use Node's built-in http module instead:
-??? --interval=10s --timeout=3s --start-period=5s --retries=5 \
+# healthcheck โดยใช้ Node (เพราะไม่มี curl/wget)
+HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=5 \
 CMD node -e "require('http').get('http://localhost:3000/health', r => process.exit(r.statusCode===200?0:1)).on('error', () => process.exit(1))"
 
-# TODO(step-4g): declare the container start command.
-CMD ["???", "???"]
+# start app
+CMD ["node", "src/index.js"]
